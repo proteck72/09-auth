@@ -1,10 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
-import { useNoteStore } from "@/lib/store/noteStore";
 import { createNote } from "@/lib/api/clientApi";
-import type { Note } from "@/types/note";
 import css from "./NoteForm.module.css";
 
 interface NoteFormProps {
@@ -14,55 +13,44 @@ interface NoteFormProps {
 export default function NoteForm({ onClose }: NoteFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { draft, setDraft, clearDraft } = useNoteStore();
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
-  ) => {
-    setDraft({ [e.target.name]: e.target.value });
+  const [draft, setDraft] = useState({
+    title: "",
+    content: "",
+    tag: "Work",
+  });
+
+  const setDraftField = (field: string, value: string) => {
+    setDraft((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await createNote({
-        title: draft.title || "",
-        content: draft.content || "",
-        tag: (draft.tag || "Todo") as Note["tag"],
-      });
-      clearDraft();
+  const createMutation = useMutation({
+    mutationFn: createNote,
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
-
+      setDraft({ title: "", content: "", tag: "Work" });
       if (onClose) {
         onClose();
       } else {
-        router.push("/notes/filter/all");
+        router.push("/notes");
       }
-    } catch (error) {
-      console.error("Failed to create note:", error);
-    }
-  };
+    },
+  });
 
-  const handleCancel = () => {
-    if (onClose) {
-      onClose();
-    } else {
-      router.back();
-    }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate(draft);
   };
 
   return (
-    <form onSubmit={handleSubmit} className={css.form}>
+    <form className={css.form} onSubmit={handleSubmit}>
       <div className={css.formGroup}>
         <label htmlFor="title">Title</label>
         <input
           id="title"
-          name="title"
           type="text"
-          value={draft.title || ""}
-          onChange={handleChange}
+          value={draft.title}
+          onChange={(e) => setDraftField("title", e.target.value)}
           required
         />
       </div>
@@ -71,9 +59,8 @@ export default function NoteForm({ onClose }: NoteFormProps) {
         <label htmlFor="content">Content</label>
         <textarea
           id="content"
-          name="content"
-          value={draft.content || ""}
-          onChange={handleChange}
+          value={draft.content}
+          onChange={(e) => setDraftField("content", e.target.value)}
           required
         />
       </div>
@@ -82,24 +69,24 @@ export default function NoteForm({ onClose }: NoteFormProps) {
         <label htmlFor="tag">Tag</label>
         <select
           id="tag"
-          name="tag"
-          value={draft.tag || "Todo"}
-          onChange={handleChange}
+          value={draft.tag}
+          onChange={(e) => setDraftField("tag", e.target.value)}
         >
-          <option value="Todo">Todo</option>
           <option value="Work">Work</option>
           <option value="Personal">Personal</option>
-          <option value="Meeting">Meeting</option>
-          <option value="Shopping">Shopping</option>
+          <option value="Important">Important</option>
         </select>
       </div>
 
       <div className={css.actions}>
-        <button type="button" onClick={handleCancel} className={css.cancelBtn}>
-          Cancel
+        <button type="submit" disabled={createMutation.isPending}>
+          {createMutation.isPending ? "Creating..." : "Create Note"}
         </button>
-        <button type="submit" className={css.submitBtn}>
-          Create note
+        <button
+          type="button"
+          onClick={() => (onClose ? onClose() : router.back())}
+        >
+          Cancel
         </button>
       </div>
     </form>

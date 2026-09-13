@@ -1,22 +1,42 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { checkSession } from "@/lib/api/serverApi";
 
 const privateRoutes = ["/profile", "/notes"];
 const publicRoutes = ["/sign-in", "/sign-up"];
 
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const token = request.cookies.get("sessionId")?.value;
+export async function proxy(req: NextRequest) {
+  const { pathname } = req.nextUrl;
 
-  const isPrivate = privateRoutes.some((route) => pathname.startsWith(route));
-  const isPublic = publicRoutes.some((route) => pathname.startsWith(route));
+  const accessToken = req.cookies.get("accessToken")?.value;
+  const refreshToken = req.cookies.get("refreshToken")?.value;
 
-  if (isPrivate && !token) {
-    return NextResponse.redirect(new URL("/sign-in", request.url));
+  let isAuthenticated = Boolean(accessToken);
+
+  if (!accessToken && refreshToken) {
+    try {
+      const res = await checkSession();
+      if (res && res.status === 200) {
+        isAuthenticated = true;
+      }
+    } catch {
+      isAuthenticated = false;
+    }
   }
 
-  if (isPublic && token) {
-    return NextResponse.redirect(new URL("/profile", request.url));
+  const isPrivateRoute = privateRoutes.some((route) =>
+    pathname.startsWith(route),
+  );
+  const isPublicRoute = publicRoutes.some((route) =>
+    pathname.startsWith(route),
+  );
+
+  if (isPrivateRoute && !isAuthenticated) {
+    return NextResponse.redirect(new URL("/sign-in", req.url));
+  }
+
+  if (isPublicRoute && isAuthenticated) {
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   return NextResponse.next();

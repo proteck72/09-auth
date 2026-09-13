@@ -1,48 +1,45 @@
 import { cookies } from "next/headers";
-import { api } from "./api";
-import type { User } from "@/types/user";
+import { api } from "@/lib/api/api";
 import type { Note } from "@/types/note";
+import type { User } from "@/types/user";
 
-async function getAuthHeaders() {
+export const checkSession = async () => {
   const cookieStore = await cookies();
-  return {
-    Cookie: cookieStore.toString(),
-  };
-}
-
-export async function fetchNotes(
-  params: {
-    page?: number;
-    perPage?: number;
-    search?: string;
-    tag?: string;
-  } = {},
-) {
-  const headers = await getAuthHeaders();
-  const { data } = await api.get<{ notes: Note[]; totalPages: number }>(
-    "/notes",
-    {
-      params,
-      headers,
+  const response = await api.get("/auth/session", {
+    headers: {
+      Cookie: cookieStore.toString(),
     },
-  );
-  return data;
-}
+  });
+  return response;
+};
 
-export async function fetchNoteById(id: string) {
-  const headers = await getAuthHeaders();
-  const { data } = await api.get<Note>(`/notes/${id}`, { headers });
+export const getMe = async (): Promise<User> => {
+  const cookieStore = await cookies();
+  const { data } = await api.get<User>("/users/me", {
+    headers: {
+      Cookie: cookieStore.toString(),
+    },
+  });
   return data;
-}
+};
 
-export async function getMe() {
-  const headers = await getAuthHeaders();
-  const { data } = await api.get<User>("/users/me", { headers });
+export const fetchNotes = async (params?: Record<string, unknown>) => {
+  const cookieStore = await cookies();
+  const { data } = await api.get("/notes", {
+    params,
+    headers: {
+      Cookie: cookieStore.toString(),
+    },
+  });
   return data;
-}
+};
 
-export async function checkSession() {
-  const headers = await getAuthHeaders();
-  const { data } = await api.get<User | null>("/auth/session", { headers });
+export const fetchNoteById = async (id: string): Promise<Note> => {
+  const cookieStore = await cookies();
+  const { data } = await api.get<Note>(`/notes/${id}`, {
+    headers: {
+      Cookie: cookieStore.toString(),
+    },
+  });
   return data;
-}
+};

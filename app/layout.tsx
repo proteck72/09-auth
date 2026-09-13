@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
 import Header from "@/components/Header/Header";
+import Footer from "@/components/Footer/Footer";
 import Providers from "@/components/Providers/Providers";
 import AuthProvider from "@/components/AuthProvider/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "NoteHub",
-  description: "Note management application",
+  description: "NoteHub Application",
 };
 
 export default function RootLayout({
   children,
   modal,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-  modal?: React.ReactNode;
-}>) {
+  modal: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body>
@@ -23,6 +24,7 @@ export default function RootLayout({
           <AuthProvider>
             <Header />
             <main>{children}</main>
+            <Footer />
             {modal}
           </AuthProvider>
         </Providers>

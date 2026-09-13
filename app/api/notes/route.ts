@@ -1,21 +1,28 @@
 import { NextResponse } from "next/server";
-import axios from "axios";
-
+import { cookies } from "next/headers";
+import { isAxiosError } from "axios";
+import { api } from "@/lib/api/api";
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const authHeader = req.headers.get("authorization");
-    const res = await axios.get(
-      `${process.env.NEXT_PUBLIC_API_URL}/notes?${searchParams.toString()}`,
-      {
-        headers: { Authorization: authHeader || "" },
-      },
-    );
-    return NextResponse.json(res.data);
-  } catch (error: any) {
+    const cookieStore = await cookies();
+
+    const response = await api.get(`/notes?${searchParams.toString()}`, {
+      headers: { Cookie: cookieStore.toString() },
+    });
+
+    return NextResponse.json(response.data);
+  } catch (error: unknown) {
+    if (isAxiosError(error)) {
+      console.error("GET Notes Error:", error.response?.data || error.message);
+      return NextResponse.json(
+        error.response?.data || { message: "Error fetching notes" },
+        { status: error.response?.status || 500 },
+      );
+    }
     return NextResponse.json(
-      error.response?.data || { message: "Error fetching notes" },
-      { status: error.response?.status || 500 },
+      { message: "Internal Server Error" },
+      { status: 500 },
     );
   }
 }
@@ -23,19 +30,24 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const authHeader = req.headers.get("authorization");
-    const res = await axios.post(
-      `${process.env.NEXT_PUBLIC_API_URL}/notes`,
-      body,
-      {
-        headers: { Authorization: authHeader || "" },
-      },
-    );
-    return NextResponse.json(res.data);
-  } catch (error: any) {
+    const cookieStore = await cookies();
+
+    const response = await api.post("/notes", body, {
+      headers: { Cookie: cookieStore.toString() },
+    });
+
+    return NextResponse.json(response.data);
+  } catch (error: unknown) {
+    if (isAxiosError(error)) {
+      console.error("POST Note Error:", error.response?.data || error.message);
+      return NextResponse.json(
+        error.response?.data || { message: "Error creating note" },
+        { status: error.response?.status || 400 },
+      );
+    }
     return NextResponse.json(
-      error.response?.data || { message: "Error creating note" },
-      { status: error.response?.status || 400 },
+      { message: "Internal Server Error" },
+      { status: 500 },
     );
   }
 }
