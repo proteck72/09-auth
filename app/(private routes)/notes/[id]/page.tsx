@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
-import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { fetchNoteById } from "@/lib/api";
+import {
+  QueryClient,
+  dehydrate,
+  HydrationBoundary,
+} from "@tanstack/react-query";
+import { fetchNoteById } from "@/lib/api/serverApi";
 import NoteDetailsClient from "@/components/NoteDetails/NoteDetailsClient";
 
 type Props = {
@@ -47,7 +51,10 @@ export default async function NoteDetailsPage({ params }: Props) {
       queryFn: () => fetchNoteById(id),
     });
   } catch (error) {
-    console.error("Server prefetch failed, will fallback to client fetch:", error);
+    console.error(
+      "Server prefetch failed, will fallback to client fetch:",
+      error,
+    );
   }
 
   return (

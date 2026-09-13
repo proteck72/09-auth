@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNoteStore } from "@/lib/store/noteStore";
-import { createNote } from "@/lib/api";
+import { createNote } from "@/lib/api/clientApi";
 import type { Note } from "@/types/note";
 import css from "./NoteForm.module.css";
 
@@ -19,7 +19,7 @@ export default function NoteForm({ onClose }: NoteFormProps) {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     setDraft({ [e.target.name]: e.target.value });
   };
