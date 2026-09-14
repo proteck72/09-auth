@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { isAxiosError } from "axios";
-import { parseCookie } from "cookie";
+import { parseSetCookie } from "next/dist/compiled/@edge-runtime/cookies";
 import { api } from "@/app/api/api";
+import { logErrorResponse } from "@/app/api/helpers";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const response = await api.post("/auth/login", body);
@@ -24,42 +24,18 @@ export async function POST(req: Request) {
       : [setCookieHeader];
 
     cookieArray.forEach((cookieStr) => {
-      const parsed = parseCookie(cookieStr);
-      for (const [name, value] of Object.entries(parsed)) {
-        if (
-          ![
-            "path",
-            "httponly",
-            "samesite",
-            "max-age",
-            "expires",
-            "domain",
-          ].includes(name.toLowerCase()) &&
-          value !== undefined
-        ) {
-          cookieStore.set(name, value, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            path: "/",
-          });
-        }
+      const parsed = parseSetCookie(cookieStr);
+      if (parsed) {
+        cookieStore.set(parsed);
       }
     });
 
     return NextResponse.json(response.data, { status: response.status });
-  } catch (error: unknown) {
-    if (isAxiosError(error)) {
-      console.error("Login Error:", error.response?.data || error.message);
-      return NextResponse.json(
-        error.response?.data || { message: "Login failed" },
-        { status: error.response?.status || 400 },
-      );
-    }
-    console.error("Unexpected Login Error:", error);
+  } catch (error: any) {
+    logErrorResponse(error);
     return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
+      error.response?.data || { message: "Login failed" },
+      { status: error.response?.status || 400 },
     );
   }
 }

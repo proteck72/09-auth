@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseCookie } from "cookie";
+import { parseSetCookie } from "next/dist/compiled/@edge-runtime/cookies";
 
 const privateRoutes = ["/notes", "/profile"];
 const publicRoutes = ["/sign-in", "/sign-up"];
@@ -40,26 +40,9 @@ export async function proxy(req: NextRequest) {
             /,\s*(?=[A-Za-z0-9_%}-]+=)/,
           );
           cookieArray.forEach((cookieStr) => {
-            const parsed = parseCookie(cookieStr);
-            for (const [key, val] of Object.entries(parsed)) {
-              if (
-                ![
-                  "path",
-                  "httponly",
-                  "samesite",
-                  "max-age",
-                  "expires",
-                  "domain",
-                ].includes(key.toLowerCase()) &&
-                val !== undefined
-              ) {
-                res.cookies.set(key, val, {
-                  httpOnly: true,
-                  secure: process.env.NODE_ENV === "production",
-                  sameSite: "lax",
-                  path: "/",
-                });
-              }
+            const parsed = parseSetCookie(cookieStr);
+            if (parsed && parsed.name) {
+              res.cookies.set(parsed.name, parsed.value, parsed);
             }
           });
         }

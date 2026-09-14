@@ -1,121 +1,72 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createNote } from "@/lib/api/clientApi";
-import styles from "./NoteForm.module.css";
+import { useRouter } from "next/navigation";
+import { useDraftStore } from "@/store/draftStore"; // або ваш кастомний хук чернетки
 
-interface NoteFormProps {
-  onClose?: () => void;
-}
-
-const TAG_OPTIONS = [
-  "Todo",
-  "Work",
-  "Personal",
-  "Meeting",
-  "Shopping",
-] as const;
-type TagType = (typeof TAG_OPTIONS)[number];
-
-export default function NoteForm({ onClose }: NoteFormProps) {
+export default function NoteForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [tag, setTag] = useState<TagType>("Todo");
+  // Використовуємо глобальний стан чернетки
+  const { title, content, tag, setField, resetDraft } = useDraftStore();
 
-  const createMutation = useMutation({
-    mutationFn: createNote,
+  const mutation = useMutation({
+    mutationFn: async (newNote: {
+      title: string;
+      content: string;
+      tag: string;
+    }) => {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newNote),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to create note");
+      }
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
-      setTitle("");
-      setContent("");
-      setTag("Todo");
-      if (onClose) {
-        onClose();
-      } else {
-        router.push("/notes");
-      }
+      resetDraft(); // Обов'язкове скидання глобальної чернетки
+      router.push("/notes");
     },
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
-    createMutation.mutate({ title, content, tag });
-  };
-
-  const handleCancel = () => {
-    if (onClose) {
-      onClose();
-    } else {
-      router.back();
-    }
+    mutation.mutate({ title, content, tag });
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
-      <div className={styles.field}>
-        <label htmlFor="title">Title</label>
-        <input
-          id="title"
-          type="text"
-          value={title}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setTitle(e.target.value)
-          }
-          required
-        />
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="content">Content</label>
-        <textarea
-          id="content"
-          value={content}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-            setContent(e.target.value)
-          }
-          rows={5}
-        />
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="tag">Tag</label>
-        <select
-          id="tag"
-          value={tag}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-            setTag(e.target.value as TagType)
-          }
-        >
-          {TAG_OPTIONS.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className={styles.actions}>
-        <button
-          type="button"
-          onClick={handleCancel}
-          className={styles.cancelBtn}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={createMutation.isPending}
-          className={styles.submitBtn}
-        >
-          {createMutation.isPending ? "Saving..." : "Save Note"}
-        </button>
-      </div>
+    <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setField("title", e.target.value)}
+        placeholder="Title"
+        required
+      />
+      <textarea
+        value={content}
+        onChange={(e) => setField("content", e.target.value)}
+        placeholder="Content"
+        required
+      />
+      <input
+        type="text"
+        value={tag}
+        onChange={(e) => setField("tag", e.target.value)}
+        placeholder="Tag"
+      />
+      <button type="button" onClick={() => router.back()}>
+        Cancel
+      </button>
+      <button type="submit" disabled={mutation.isPending}>
+        {mutation.isPending ? "Creating..." : "Create"}
+      </button>
     </form>
   );
 }

@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { isAxiosError } from "axios";
-import { parseCookie } from "cookie";
+import { parseSetCookie } from "next/dist/compiled/@edge-runtime/cookies";
 import { api } from "@/app/api/api";
+import { logErrorResponse } from "@/app/api/helpers";
 
 export async function GET() {
   try {
     const cookieStore = await cookies();
+    const accessToken = cookieStore.get("accessToken")?.value;
+    const refreshToken = cookieStore.get("refreshToken")?.value;
+
+    if (!accessToken && !refreshToken) {
+      return NextResponse.json({ success: false }, { status: 200 });
+    }
+
     const response = await api.get("/auth/session", {
       headers: {
         Cookie: cookieStore.toString(),
@@ -21,43 +28,19 @@ export async function GET() {
         : [setCookieHeader];
 
       cookieArray.forEach((cookieStr) => {
-        const parsed = parseCookie(cookieStr);
-        for (const [name, value] of Object.entries(parsed)) {
-          if (
-            ![
-              "path",
-              "httponly",
-              "samesite",
-              "max-age",
-              "expires",
-              "domain",
-            ].includes(name.toLowerCase()) &&
-            value !== undefined
-          ) {
-            cookieStore.set(name, value, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === "production",
-              sameSite: "lax",
-              path: "/",
-            });
-          }
+        const parsed = parseSetCookie(cookieStr);
+        if (parsed) {
+          cookieStore.set(parsed);
         }
       });
     }
 
-    return NextResponse.json(response.data, { status: response.status });
-  } catch (error: unknown) {
-    if (isAxiosError(error)) {
-      console.error("Session Error:", error.response?.data || error.message);
-      return NextResponse.json(
-        error.response?.data || { message: "Session invalid or expired" },
-        { status: error.response?.status || 401 },
-      );
-    }
-    console.error("Unexpected Session Error:", error);
     return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
+      { success: true, data: response.data },
+      { status: 200 },
     );
+  } catch (error: any) {
+    logErrorResponse(error);
+    return NextResponse.json({ success: false }, { status: 200 });
   }
 }
