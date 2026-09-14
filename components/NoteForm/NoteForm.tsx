@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useDraftStore } from "@/lib/store/draftStore";
 import { createNote } from "@/lib/api/clientApi";
 
+const TAG_OPTIONS = ["Todo", "Work", "Personal", "Meeting", "Shopping"];
+
 export default function NoteForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -28,7 +30,7 @@ export default function NoteForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate({ title, content, tag });
+    mutation.mutate({ title, content, tag: tag || TAG_OPTIONS[0] });
   };
 
   return (
@@ -46,12 +48,16 @@ export default function NoteForm() {
         placeholder="Content"
         required
       />
-      <input
-        type="text"
-        value={tag}
+      <select
+        value={tag || TAG_OPTIONS[0]}
         onChange={(e) => setField("tag", e.target.value)}
-        placeholder="Tag"
-      />
+      >
+        {TAG_OPTIONS.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
       <button type="button" onClick={() => router.back()}>
         Cancel
       </button>

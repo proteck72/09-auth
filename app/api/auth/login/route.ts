@@ -3,11 +3,12 @@ import { cookies } from "next/headers";
 import { parseSetCookie } from "cookie";
 import { isAxiosError } from "axios";
 import { api } from "@/app/api/api";
+import { logErrorResponse } from "@/app/api/helpers";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const response = await api.post("/auth/login", body);
+    const response = await api.post("/auth/register", body);
 
     const setCookieHeader = response.headers["set-cookie"];
 
@@ -28,9 +29,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(response.data, { status: response.status });
   } catch (error: unknown) {
+    logErrorResponse(error);
     if (isAxiosError(error)) {
       return NextResponse.json(
-        error.response?.data || { message: "Login failed" },
+        error.response?.data || { message: "Registration failed" },
         { status: error.response?.status || 400 },
       );
     }

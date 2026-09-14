@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { isAxiosError } from "axios";
 import { api } from "@/app/api/api";
+import { logErrorResponse } from "@/app/api/helpers";
 
 export async function GET(req: NextRequest) {
   try {
@@ -40,6 +41,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(response.data, { status: response.status });
   } catch (error: unknown) {
+    logErrorResponse(error);
     if (isAxiosError(error)) {
       return NextResponse.json(
         error.response?.data || { message: "Failed to fetch notes" },
@@ -67,10 +69,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(response.data, { status: response.status });
   } catch (error: unknown) {
+    logErrorResponse(error);
     if (isAxiosError(error)) {
       return NextResponse.json(
         error.response?.data || { message: "Failed to create note" },
-        { status: error.response?.status || 400 },
+        { status: error.response?.status || 500 },
       );
     }
     return NextResponse.json(
