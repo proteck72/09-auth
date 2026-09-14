@@ -25,9 +25,9 @@ export async function proxy(req: NextRequest) {
     try {
       const sessionResponse = await checkSession();
 
-      if (sessionResponse.ok) {
+      if (sessionResponse && sessionResponse.status < 400) {
         const res = NextResponse.next();
-        const setCookieHeader = sessionResponse.headers.get("set-cookie");
+        const setCookieHeader = sessionResponse.headers?.["set-cookie"];
 
         if (setCookieHeader) {
           const cookieArray = Array.isArray(setCookieHeader)
@@ -36,7 +36,7 @@ export async function proxy(req: NextRequest) {
 
           cookieArray.forEach((cookieStr) => {
             const parsed = parseSetCookie(cookieStr);
-            if (parsed && parsed.name) {
+            if (parsed && parsed.name && typeof parsed.value === "string") {
               const { name, value, ...options } = parsed;
               res.cookies.set(name, value, options);
             }

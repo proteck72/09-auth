@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
       cookieArray.forEach((cookieStr) => {
         const parsed = parseSetCookie(cookieStr);
-        if (parsed && parsed.name) {
+        if (parsed && parsed.name && typeof parsed.value === "string") {
           const { name, value, ...options } = parsed;
           cookieStore.set(name, value, options);
         }
