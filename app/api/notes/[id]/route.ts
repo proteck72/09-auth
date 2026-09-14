@@ -1,91 +1,82 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { isAxiosError } from "axios";
-import { api } from "@/lib/api/api";
+import { NextRequest, NextResponse } from "next/server";
+import { api } from "@/app/api/api";
+
+function logErrorResponse(error: any) {
+  console.error("API Error:", error?.response?.data || error?.message || error);
+}
+
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-
     const response = await api.get(`/notes/${id}`, {
-      headers: { Cookie: cookieStore.toString() },
+      headers: { Cookie: req.headers.get("cookie") || "" },
     });
 
-    return NextResponse.json(response.data);
-  } catch (error: unknown) {
-    if (isAxiosError(error)) {
-      console.error("GET Note Error:", error.response?.data || error.message);
-      return NextResponse.json(
-        error.response?.data || { message: "Note not found" },
-        { status: error.response?.status || 404 },
-      );
-    }
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error: any) {
+    logErrorResponse(error);
+    const status = error.status || error.response?.status || 500;
     return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
+      {
+        message: error.message || "Failed to fetch note",
+        response: error.response?.data,
+      },
+      { status },
     );
   }
 }
 
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
     const body = await req.json();
-    const cookieStore = await cookies();
-
     const response = await api.patch(`/notes/${id}`, body, {
-      headers: { Cookie: cookieStore.toString() },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: req.headers.get("cookie") || "",
+      },
     });
 
-    return NextResponse.json(response.data);
-  } catch (error: unknown) {
-    if (isAxiosError(error)) {
-      console.error("PATCH Note Error:", error.response?.data || error.message);
-      return NextResponse.json(
-        error.response?.data || { message: "Error updating note" },
-        { status: error.response?.status || 400 },
-      );
-    }
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error: any) {
+    logErrorResponse(error);
+    const status = error.status || error.response?.status || 500;
     return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
+      {
+        message: error.message || "Failed to update note",
+        response: error.response?.data,
+      },
+      { status },
     );
   }
 }
 
 export async function DELETE(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-
     const response = await api.delete(`/notes/${id}`, {
-      headers: { Cookie: cookieStore.toString() },
+      headers: { Cookie: req.headers.get("cookie") || "" },
     });
 
-    return NextResponse.json(response.data);
-  } catch (error: unknown) {
-    if (isAxiosError(error)) {
-      console.error(
-        "DELETE Note Error:",
-        error.response?.data || error.message,
-      );
-      return NextResponse.json(
-        error.response?.data || { message: "Error deleting note" },
-        { status: error.response?.status || 400 },
-      );
-    }
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error: any) {
+    logErrorResponse(error);
+    const status = error.status || error.response?.status || 500;
     return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
+      {
+        message: error.message || "Failed to delete note",
+        response: error.response?.data,
+      },
+      { status },
     );
   }
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { createNote } from "@/lib/api/clientApi";
+import { useNoteStore } from "@/lib/store/noteStore";
 import css from "./NoteForm.module.css";
 
 interface NoteFormProps {
@@ -13,22 +13,13 @@ interface NoteFormProps {
 export default function NoteForm({ onClose }: NoteFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-
-  const [draft, setDraft] = useState({
-    title: "",
-    content: "",
-    tag: "Work",
-  });
-
-  const setDraftField = (field: string, value: string) => {
-    setDraft((prev) => ({ ...prev, [field]: value }));
-  };
+  const { draft, setDraftField, resetDraft } = useNoteStore();
 
   const createMutation = useMutation({
     mutationFn: createNote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
-      setDraft({ title: "", content: "", tag: "Work" });
+      resetDraft();
       if (onClose) {
         onClose();
       } else {

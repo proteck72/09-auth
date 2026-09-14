@@ -1,34 +1,36 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { isAxiosError } from "axios";
-import { api } from "@/lib/api/api";
-export async function POST(req: Request) {
+import { parseSetCookie } from "set-cookie-parser";
+import { api } from "@/app/api/api";
+
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const response = await api.post("/auth/register", body);
 
-    const res = NextResponse.json(response.data);
+    const cookieStore = await cookies();
     const setCookieHeader = response.headers["set-cookie"];
 
     if (setCookieHeader) {
-      setCookieHeader.forEach((cookieStr) => {
-        res.headers.append("Set-Cookie", cookieStr);
-      });
+      const parsedCookies = parseSetCookie(setCookieHeader);
+      for (const cookie of parsedCookies) {
+        cookieStore.set(cookie.name, cookie.value, {
+          maxAge: cookie.maxAge,
+          expires: cookie.expires,
+          path: cookie.path,
+          domain: cookie.domain,
+          secure: cookie.secure,
+          httpOnly: cookie.httpOnly,
+          sameSite: cookie.sameSite as "strict" | "lax" | "none",
+        });
+      }
     }
 
-    return res;
-  } catch (error: unknown) {
-    if (isAxiosError(error)) {
-      console.error("Register Error:", error.response?.data || error.message);
-      return NextResponse.json(
-        error.response?.data || { message: "Registration failed" },
-        { status: error.response?.status || 500 },
-      );
-    }
-    console.error("Unexpected error:", error);
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error: any) {
     return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
+      error.response?.data || { message: "Registration failed" },
+      { status: error.response?.status || 500 },
     );
   }
 }

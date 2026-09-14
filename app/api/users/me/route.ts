@@ -1,37 +1,60 @@
-import { NextResponse } from "next/server";
-import axios from "axios";
+import { NextRequest, NextResponse } from "next/server";
+import { isAxiosError } from "axios";
+import { api } from "@/app/api/api";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization");
-    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/me`, {
-      headers: { Authorization: authHeader || "" },
+    const response = await api.get("/users/me", {
+      headers: {
+        Cookie: req.headers.get("cookie") || "",
+      },
     });
-    return NextResponse.json(res.data);
-  } catch (error: any) {
+
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error: unknown) {
+    if (isAxiosError(error)) {
+      console.error(
+        "GET Profile Error:",
+        error.response?.data || error.message,
+      );
+      return NextResponse.json(
+        error.response?.data || { message: "Unauthorized" },
+        { status: error.response?.status || 401 },
+      );
+    }
     return NextResponse.json(
-      error.response?.data || { message: "Unauthorized" },
-      { status: error.response?.status || 401 },
+      { message: "Internal Server Error" },
+      { status: 500 },
     );
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const authHeader = req.headers.get("authorization");
-    const res = await axios.patch(
-      `${process.env.NEXT_PUBLIC_API_URL}/users/me`,
-      body,
-      {
-        headers: { Authorization: authHeader || "" },
+
+    const response = await api.patch("/users/me", body, {
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: req.headers.get("cookie") || "",
       },
-    );
-    return NextResponse.json(res.data);
-  } catch (error: any) {
+    });
+
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error: unknown) {
+    if (isAxiosError(error)) {
+      console.error(
+        "PATCH Profile Error:",
+        error.response?.data || error.message,
+      );
+      return NextResponse.json(
+        error.response?.data || { message: "Error updating profile" },
+        { status: error.response?.status || 400 },
+      );
+    }
     return NextResponse.json(
-      error.response?.data || { message: "Error updating user" },
-      { status: error.response?.status || 400 },
+      { message: "Internal Server Error" },
+      { status: 500 },
     );
   }
 }
