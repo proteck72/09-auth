@@ -3,11 +3,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useDraftStore } from "@/lib/store/draftStore";
+import { createNote } from "@/lib/api/clientApi";
+
 export default function NoteForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // Використовуємо глобальний стан чернетки
   const { title, content, tag, setField, resetDraft } = useDraftStore();
 
   const mutation = useMutation({
@@ -16,20 +17,11 @@ export default function NoteForm() {
       content: string;
       tag: string;
     }) => {
-      const res = await fetch("/api/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newNote),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to create note");
-      }
-      return res.json();
+      return await createNote(newNote);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
-      resetDraft(); // Обов'язкове скидання глобальної чернетки
+      resetDraft();
       router.push("/notes");
     },
   });

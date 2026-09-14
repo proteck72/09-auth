@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { parseSetCookie } from "next/dist/compiled/@edge-runtime/cookies";
+import { parseSetCookie } from "cookie";
+import { isAxiosError } from "axios";
 import { api } from "@/app/api/api";
-import { logErrorResponse } from "@/app/api/helpers";
 
 export async function GET() {
   try {
@@ -10,7 +10,11 @@ export async function GET() {
     const accessToken = cookieStore.get("accessToken")?.value;
     const refreshToken = cookieStore.get("refreshToken")?.value;
 
-    if (!accessToken && !refreshToken) {
+    if (accessToken) {
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+
+    if (!refreshToken) {
       return NextResponse.json({ success: false }, { status: 200 });
     }
 
@@ -29,18 +33,24 @@ export async function GET() {
 
       cookieArray.forEach((cookieStr) => {
         const parsed = parseSetCookie(cookieStr);
-        if (parsed) {
-          cookieStore.set(parsed);
+        if (parsed && parsed.name) {
+          const { name, value, ...options } = parsed;
+          cookieStore.set(name, value, options);
         }
       });
     }
 
-    return NextResponse.json(
-      { success: true, data: response.data },
-      { status: 200 },
-    );
-  } catch (error: any) {
-    logErrorResponse(error);
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error: unknown) {
+    if (isAxiosError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.response?.data?.message || "Session error",
+        },
+        { status: error.response?.status || 200 },
+      );
+    }
     return NextResponse.json({ success: false }, { status: 200 });
   }
 }

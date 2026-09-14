@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseSetCookie } from "next/dist/compiled/@edge-runtime/cookies";
+import { parseSetCookie } from "cookie";
+import { checkSession } from "@/lib/api/serverApi";
 
 const privateRoutes = ["/notes", "/profile"];
 const publicRoutes = ["/sign-in", "/sign-up"];
@@ -22,33 +23,30 @@ export async function proxy(req: NextRequest) {
 
   if (!accessToken && refreshToken && isPrivateKeyRoute) {
     try {
-      const sessionResponse = await fetch(
-        new URL("/api/auth/session", req.url).toString(),
-        {
-          headers: {
-            Cookie: req.headers.get("cookie") || "",
-          },
-        },
-      );
+      const sessionResponse = await checkSession();
 
       if (sessionResponse.ok) {
         const res = NextResponse.next();
         const setCookieHeader = sessionResponse.headers.get("set-cookie");
 
         if (setCookieHeader) {
-          const cookieArray = setCookieHeader.split(
-            /,\s*(?=[A-Za-z0-9_%}-]+=)/,
-          );
+          const cookieArray = Array.isArray(setCookieHeader)
+            ? setCookieHeader
+            : [setCookieHeader];
+
           cookieArray.forEach((cookieStr) => {
             const parsed = parseSetCookie(cookieStr);
             if (parsed && parsed.name) {
-              res.cookies.set(parsed.name, parsed.value, parsed);
+              const { name, value, ...options } = parsed;
+              res.cookies.set(name, value, options);
             }
           });
         }
         return res;
       }
-    } catch {}
+    } catch {
+      return NextResponse.redirect(new URL("/sign-in", req.url));
+    }
   }
 
   if (!accessToken && !refreshToken && isPrivateKeyRoute) {
