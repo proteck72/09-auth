@@ -2,8 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useDraftStore } from "@/store/draftStore"; // або ваш кастомний хук чернетки
-
+import { useDraftStore } from "@/lib/store/draftStore";
 export default function NoteForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
