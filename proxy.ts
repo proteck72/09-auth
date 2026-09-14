@@ -1,73 +1,80 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseSetCookie } from "set-cookie-parser";
+import { parseCookie } from "cookie";
 
 const privateRoutes = ["/notes", "/profile"];
-const publicRoutes = ["/login", "/register"];
+const publicRoutes = ["/sign-in", "/sign-up"];
 
-// ❌ Було: export async function middleware(req: NextRequest)
-// ✅ Замініть на proxy:
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-
   const accessToken = req.cookies.get("accessToken")?.value;
   const refreshToken = req.cookies.get("refreshToken")?.value;
 
-  let response = NextResponse.next();
-  let isAuthenticated = Boolean(accessToken);
+  const isPrivateKeyRoute = privateRoutes.some((route) =>
+    pathname.startsWith(route),
+  );
+  const isPublicKeyRoute = publicRoutes.some((route) =>
+    pathname.startsWith(route),
+  );
 
-  if (!accessToken && refreshToken) {
+  if (accessToken && isPublicKeyRoute) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  if (!accessToken && refreshToken && isPrivateKeyRoute) {
     try {
-      const sessionRes = await fetch(new URL("/api/auth/session", req.url), {
-        headers: {
-          cookie: req.headers.get("cookie") || "",
+      const sessionResponse = await fetch(
+        new URL("/api/auth/session", req.url).toString(),
+        {
+          headers: {
+            Cookie: req.headers.get("cookie") || "",
+          },
         },
-      });
+      );
 
-      if (sessionRes.ok) {
-        isAuthenticated = true;
-        const setCookieHeader = sessionRes.headers.get("set-cookie");
+      if (sessionResponse.ok) {
+        const res = NextResponse.next();
+        const setCookieHeader = sessionResponse.headers.get("set-cookie");
+
         if (setCookieHeader) {
-          const parsedCookies = parseSetCookie(setCookieHeader);
-          for (const c of parsedCookies) {
-            response.cookies.set(c.name, c.value, {
-              maxAge: c.maxAge,
-              expires: c.expires,
-              path: c.path,
-              domain: c.domain,
-              secure: c.secure,
-              httpOnly: c.httpOnly,
-              sameSite: c.sameSite as "strict" | "lax" | "none",
-            });
-          }
+          const cookieArray = setCookieHeader.split(
+            /,\s*(?=[A-Za-z0-9_%}-]+=)/,
+          );
+          cookieArray.forEach((cookieStr) => {
+            const parsed = parseCookie(cookieStr);
+            for (const [key, val] of Object.entries(parsed)) {
+              if (
+                ![
+                  "path",
+                  "httponly",
+                  "samesite",
+                  "max-age",
+                  "expires",
+                  "domain",
+                ].includes(key.toLowerCase()) &&
+                val !== undefined
+              ) {
+                res.cookies.set(key, val, {
+                  httpOnly: true,
+                  secure: process.env.NODE_ENV === "production",
+                  sameSite: "lax",
+                  path: "/",
+                });
+              }
+            }
+          });
         }
-      } else {
-        isAuthenticated = false;
+        return res;
       }
-    } catch {
-      isAuthenticated = false;
-    }
+    } catch {}
   }
 
-  const isPrivateRoute = privateRoutes.some((route) =>
-    pathname.startsWith(route),
-  );
-  const isPublicRoute = publicRoutes.some((route) =>
-    pathname.startsWith(route),
-  );
-
-  if (isPrivateRoute && !isAuthenticated) {
-    const loginUrl = new URL("/login", req.url);
-    return NextResponse.redirect(loginUrl);
+  if (!accessToken && !refreshToken && isPrivateKeyRoute) {
+    return NextResponse.redirect(new URL("/sign-in", req.url));
   }
 
-  if (isPublicRoute && isAuthenticated) {
-    const notesUrl = new URL("/notes", req.url);
-    return NextResponse.redirect(notesUrl);
-  }
-
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/notes/:path*", "/profile/:path*", "/login", "/register"],
+  matcher: ["/notes/:path*", "/profile/:path*", "/sign-in", "/sign-up"],
 };

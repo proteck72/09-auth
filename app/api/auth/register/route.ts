@@ -1,36 +1,65 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { parseSetCookie } from "set-cookie-parser";
+import { isAxiosError } from "axios";
+import { parseCookie } from "cookie";
 import { api } from "@/app/api/api";
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
     const response = await api.post("/auth/register", body);
 
-    const cookieStore = await cookies();
     const setCookieHeader = response.headers["set-cookie"];
 
-    if (setCookieHeader) {
-      const parsedCookies = parseSetCookie(setCookieHeader);
-      for (const cookie of parsedCookies) {
-        cookieStore.set(cookie.name, cookie.value, {
-          maxAge: cookie.maxAge,
-          expires: cookie.expires,
-          path: cookie.path,
-          domain: cookie.domain,
-          secure: cookie.secure,
-          httpOnly: cookie.httpOnly,
-          sameSite: cookie.sameSite as "strict" | "lax" | "none",
-        });
-      }
+    if (!setCookieHeader) {
+      return NextResponse.json(
+        { message: "Unauthorized: Missing set-cookie header" },
+        { status: 401 },
+      );
     }
 
+    const cookieStore = await cookies();
+    const cookieArray = Array.isArray(setCookieHeader)
+      ? setCookieHeader
+      : [setCookieHeader];
+
+    cookieArray.forEach((cookieStr) => {
+      const parsed = parseCookie(cookieStr);
+      for (const [name, value] of Object.entries(parsed)) {
+        if (
+          ![
+            "path",
+            "httponly",
+            "samesite",
+            "max-age",
+            "expires",
+            "domain",
+          ].includes(name.toLowerCase()) &&
+          value !== undefined
+        ) {
+          cookieStore.set(name, value, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+          });
+        }
+      }
+    });
+
     return NextResponse.json(response.data, { status: response.status });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (isAxiosError(error)) {
+      console.error("Register Error:", error.response?.data || error.message);
+      return NextResponse.json(
+        error.response?.data || { message: "Registration failed" },
+        { status: error.response?.status || 400 },
+      );
+    }
+    console.error("Unexpected Register Error:", error);
     return NextResponse.json(
-      error.response?.data || { message: "Registration failed" },
-      { status: error.response?.status || 500 },
+      { message: "Internal Server Error" },
+      { status: 500 },
     );
   }
 }
