@@ -29,15 +29,18 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(response.data, { status: response.status });
   } catch (error: unknown) {
-    if (isAxiosError(error)) {
-      logErrorResponse(error.response?.data);
-      return NextResponse.json(error.response?.data, {
-        status: error.response?.status,
-      });
-    }
     logErrorResponse(error);
+    if (isAxiosError(error)) {
+      const status = error.status
+        ? Number(error.status)
+        : error.response?.status || 400;
+      return NextResponse.json(
+        { error: error.message, response: error.response?.data },
+        { status },
+      );
+    }
     return NextResponse.json(
-      { message: "Internal Server Error" },
+      { error: "Internal Server Error" },
       { status: 500 },
     );
   }
