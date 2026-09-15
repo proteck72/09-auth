@@ -8,12 +8,12 @@ import { logErrorResponse } from "@/app/api/helpers";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const response = await api.post("/auth/register", body);
+    const response = await api.post("/auth/login", body);
 
+    const cookieStore = await cookies();
     const setCookieHeader = response.headers["set-cookie"];
 
     if (setCookieHeader) {
-      const cookieStore = await cookies();
       const cookieArray = Array.isArray(setCookieHeader)
         ? setCookieHeader
         : [setCookieHeader];
@@ -29,13 +29,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(response.data, { status: response.status });
   } catch (error: unknown) {
-    logErrorResponse(error);
     if (isAxiosError(error)) {
-      return NextResponse.json(
-        error.response?.data || { message: "Registration failed" },
-        { status: error.response?.status || 400 },
-      );
+      logErrorResponse(error.response?.data);
+      return NextResponse.json(error.response?.data, {
+        status: error.response?.status,
+      });
     }
+    logErrorResponse(error);
     return NextResponse.json(
       { message: "Internal Server Error" },
       { status: 500 },

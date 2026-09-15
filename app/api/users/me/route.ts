@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { isAxiosError } from "axios";
 import { api } from "@/app/api/api";
+import { logErrorResponse } from "@/app/api/helpers";
 
 export async function GET() {
   try {
@@ -16,16 +17,12 @@ export async function GET() {
     return NextResponse.json(response.data, { status: response.status });
   } catch (error: unknown) {
     if (isAxiosError(error)) {
-      console.error(
-        "GET Profile Error:",
-        error.response?.data || error.message,
-      );
-      return NextResponse.json(
-        error.response?.data || { message: "Unauthorized" },
-        { status: error.response?.status || 401 },
-      );
+      logErrorResponse(error.response?.data);
+      return NextResponse.json(error.response?.data, {
+        status: error.response?.status,
+      });
     }
-    console.error("Unexpected GET Profile Error:", error);
+    logErrorResponse(error);
     return NextResponse.json(
       { message: "Internal Server Error" },
       { status: 500 },
@@ -47,16 +44,12 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json(response.data, { status: response.status });
   } catch (error: unknown) {
     if (isAxiosError(error)) {
-      console.error(
-        "PATCH Profile Error:",
-        error.response?.data || error.message,
-      );
-      return NextResponse.json(
-        error.response?.data || { message: "Error updating profile" },
-        { status: error.response?.status || 400 },
-      );
+      logErrorResponse(error.response?.data);
+      return NextResponse.json(error.response?.data, {
+        status: error.response?.status,
+      });
     }
-    console.error("Unexpected PATCH Profile Error:", error);
+    logErrorResponse(error);
     return NextResponse.json(
       { message: "Internal Server Error" },
       { status: 500 },

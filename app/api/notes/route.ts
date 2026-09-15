@@ -9,28 +9,14 @@ export async function GET(req: NextRequest) {
     const cookieStore = await cookies();
     const { searchParams } = new URL(req.url);
 
-    const pageParam = searchParams.get("page") || "1";
-    const page = Number(pageParam);
-
-    let tag = searchParams.get("tag") || "";
-    if (tag === "All") {
-      tag = "";
-    }
-
+    const page = searchParams.get("page") || "1";
+    const tag = searchParams.get("tag") || "";
     const search = searchParams.get("search") || "";
 
-    const params: Record<string, unknown> = {
-      page,
-      perPage: 12,
-    };
-
-    if (search) {
-      params.search = search;
-    }
-
-    if (tag) {
-      params.tag = tag;
-    }
+    const params: Record<string, string> = {};
+    if (page) params.page = page;
+    if (tag && tag !== "All") params.tag = tag;
+    if (search) params.search = search;
 
     const response = await api.get("/notes", {
       params,
@@ -41,13 +27,13 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(response.data, { status: response.status });
   } catch (error: unknown) {
-    logErrorResponse(error);
     if (isAxiosError(error)) {
-      return NextResponse.json(
-        error.response?.data || { message: "Failed to fetch notes" },
-        { status: error.response?.status || 500 },
-      );
+      logErrorResponse(error.response?.data);
+      return NextResponse.json(error.response?.data, {
+        status: error.response?.status,
+      });
     }
+    logErrorResponse(error);
     return NextResponse.json(
       { message: "Internal Server Error" },
       { status: 500 },
@@ -62,20 +48,19 @@ export async function POST(req: NextRequest) {
 
     const response = await api.post("/notes", body, {
       headers: {
-        "Content-Type": "application/json",
         Cookie: cookieStore.toString(),
       },
     });
 
     return NextResponse.json(response.data, { status: response.status });
   } catch (error: unknown) {
-    logErrorResponse(error);
     if (isAxiosError(error)) {
-      return NextResponse.json(
-        error.response?.data || { message: "Failed to create note" },
-        { status: error.response?.status || 500 },
-      );
+      logErrorResponse(error.response?.data);
+      return NextResponse.json(error.response?.data, {
+        status: error.response?.status,
+      });
     }
+    logErrorResponse(error);
     return NextResponse.json(
       { message: "Internal Server Error" },
       { status: 500 },
